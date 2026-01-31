@@ -1,0 +1,154 @@
+:root {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+
+  color: #0f0f0f;
+  background-color: #f6f6f6;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+.container {
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  color: #0f0f0f;
+  background-color: #ffffff;
+  transition: border-color 0.25s;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+button:hover {
+  border-color: #396cd8;
+}
+
+button:active {
+  border-color: #396cd8;
+  background-color: #e8e8e8;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.provider-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.provider-card.disabled {
+  opacity: 0.5;
+}
+
+.provider-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.1em;
+}
+
+.provider-card .error {
+  color: #e53935;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.usage-bar {
+  margin-bottom: 12px;
+}
+
+.usage-bar label {
+  display: block;
+  font-size: 0.85em;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.usage-bar .bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.usage-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.usage-bar .fill.warning {
+  background: linear-gradient(90deg, #ff9800, #ffc107);
+}
+
+.usage-bar .fill.critical {
+  background: linear-gradient(90deg, #f44336, #e91e63);
+}
+
+.reset {
+  font-size: 0.8em;
+  color: #888;
+  margin: 8px 0 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f6f6f6;
+    background-color: #1a1a1a;
+  }
+
+  button {
+    color: #ffffff;
+    background-color: #333;
+  }
+
+  button:active {
+    background-color: #444;
+  }
+
+  .provider-card {
+    background: #2a2a2a;
+  }
+
+  .usage-bar label {
+    color: #aaa;
+  }
+
+  .usage-bar .bar {
+    background: #444;
+  }
+}
