@@ -101,13 +101,14 @@ async fn refresh_all_providers<R: Runtime>(app: &AppHandle<R>) {
     if let Some(registry) = app.try_state::<Arc<RwLock<ProviderRegistry>>>() {
         let registry = registry.read().await;
         
-        for (name, provider) in registry.enabled_providers() {
+        for (name, provider_arc) in registry.enabled_providers() {
+            let provider = provider_arc.read().await;
             match provider.fetch_usage().await {
                 Ok(usage) => {
                     // Update cache
                     if let Some(cache) = app.try_state::<Arc<RwLock<CacheManager>>>() {
                         let mut cache = cache.write().await;
-                        cache.set(&name, usage.clone());
+                        cache.set(name.as_str(), usage.clone());
                         let _ = cache.save();
                     }
                     
@@ -115,11 +116,11 @@ async fn refresh_all_providers<R: Runtime>(app: &AppHandle<R>) {
                     check_usage_warnings(app, &name, &usage).await;
                     
                     // Emit update event
-                    let _ = app.emit("provider-updated", (&name, &usage));
+                    let _ = app.emit("provider-updated", (name.as_str(), &usage));
                 }
                 Err(e) => {
                     log::error!("Failed to refresh {}: {}", name, e);
-                    let _ = app.emit("provider-error", (&name, e.to_string()));
+                    let _ = app.emit("provider-error", (name.as_str(), e.to_string()));
                 }
             }
         }

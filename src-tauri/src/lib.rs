@@ -51,6 +51,8 @@ pub fn run() {
             commands::save_credentials,
             commands::get_all_usage,
             commands::set_provider_enabled,
+            commands::start_provider_auth,
+            commands::complete_provider_auth,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
