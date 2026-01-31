@@ -17,7 +17,7 @@ use crate::storage::{UsageData, keyring};
 
 const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
-const COPILOT_USAGE_URL: &str = "https://api.github.com/copilot/usage";
+const COPILOT_USAGE_URL: &str = "https://api.github.com/copilot_internal/user";
 const CLIENT_ID: &str = "Iv1.b507a08c87ecfe98";
 
 pub struct CopilotProvider {
@@ -62,13 +62,25 @@ struct TokenResponse {
 }
 
 #[derive(Deserialize, Debug)]
+struct QuotaSnapshot {
+    entitlement: f64,
+    remaining: f64,
+    percent_remaining: f64,
+    quota_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct QuotaSnapshots {
+    premium_interactions: Option<QuotaSnapshot>,
+    chat: Option<QuotaSnapshot>,
+}
+
+#[derive(Deserialize, Debug)]
 struct CopilotUsageResponse {
-    chat_completions: Option<u64>,
-    chat_completions_limit: Option<u64>,
-    premium_requests: Option<u64>,
-    premium_requests_limit: Option<u64>,
-    resets_at: Option<String>,
-    copilot_plan: Option<String>,
+    quota_snapshots: QuotaSnapshots,
+    copilot_plan: String,
+    assigned_date: String,
+    quota_reset_date: String,
 }
 
 #[async_trait]
@@ -95,10 +107,12 @@ impl Provider for CopilotProvider {
         
         let response = self.client
             .get(COPILOT_USAGE_URL)
-            .header("Authorization", format!("Bearer {}", token))
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .header("User-Agent", "LimitsWatcher/1.0")
+            .header("Authorization", format!("token {}", token))
+            .header("Accept", "application/json")
+            .header("Editor-Version", "vscode/1.96.2")
+            .header("Editor-Plugin-Version", "copilot-chat/0.26.7")
+            .header("User-Agent", "GitHubCopilotChat/0.26.7")
+            .header("X-Github-Api-Version", "2025-04-01")
             .send()
             .await
             .map_err(|e| ProviderError::Network(e.to_string()))?;
@@ -123,17 +137,34 @@ impl Provider for CopilotProvider {
             .await
             .map_err(|e| ProviderError::Parse(e.to_string()))?;
         
-        let reset_time = usage.resets_at.and_then(|s| {
-            DateTime::parse_from_rfc3339(&s)
-                .ok()
-                .map(|dt| dt.with_timezone(&Utc))
-        });
+        // Parse reset time
+        let reset_time = DateTime::parse_from_rfc3339(&usage.quota_reset_date)
+            .ok()
+            .map(|dt| dt.with_timezone(&Utc));
+        
+        // Extract chat quota (primary limit)
+        let (chat_used, chat_limit) = if let Some(chat) = &usage.quota_snapshots.chat {
+            let limit = chat.entitlement as u64;
+            let used = (chat.entitlement - chat.remaining) as u64;
+            (used, limit)
+        } else {
+            (0, 0)
+        };
+        
+        // Extract premium interactions quota (secondary limit)
+        let (premium_used, premium_limit) = if let Some(premium) = &usage.quota_snapshots.premium_interactions {
+            let limit = premium.entitlement as u64;
+            let used = (premium.entitlement - premium.remaining) as u64;
+            (used, limit)
+        } else {
+            (0, 0)
+        };
         
         Ok(UsageData {
-            session_used: usage.chat_completions.unwrap_or(0),
-            session_limit: usage.chat_completions_limit.unwrap_or(0),
-            weekly_used: usage.premium_requests.unwrap_or(0),
-            weekly_limit: usage.premium_requests_limit.unwrap_or(0),
+            session_used: chat_used,
+            session_limit: chat_limit,
+            weekly_used: premium_used,
+            weekly_limit: premium_limit,
             credits_remaining: None,
             reset_time,
             weekly_reset_time: reset_time,
