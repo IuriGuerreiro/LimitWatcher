@@ -5,6 +5,8 @@ mod scheduler;
 mod storage;
 mod tray;
 
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,6 +19,17 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         .setup(|app| {
+            // Initialize State
+            let app_data_dir = app.path().app_data_dir().expect("failed to get app data dir");
+            let cache_manager = storage::CacheManager::new(app_data_dir);
+            app.manage(Arc::new(RwLock::new(cache_manager)));
+
+            let provider_registry = providers::ProviderRegistry::new();
+            app.manage(Arc::new(RwLock::new(provider_registry)));
+
+            let notification_tracker = notifications::NotificationTracker::new();
+            app.manage(Arc::new(RwLock::new(notification_tracker)));
+
             // Initialize system tray
             tray::init(app)?;
 

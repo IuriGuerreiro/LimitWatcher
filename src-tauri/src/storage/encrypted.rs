@@ -4,9 +4,9 @@ use aes_gcm::{
     aead::{Aead, KeyInit, OsRng},
     Aes256Gcm, Nonce,
 };
+use aes_gcm::aead::rand_core::RngCore;
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -58,13 +58,14 @@ fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
 /// Get machine-specific identifier for key derivation
 fn get_machine_id() -> String {
     // Use combination of factors for machine binding
-    let hostname = hostname::get()
-        .map(|h| h.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "unknown".to_string());
+    let machine_hostname: String = match hostname::get() {
+        Ok(h) => h.to_string_lossy().to_string(),
+        Err(_) => "unknown".to_string(),
+    };
     
-    let username = whoami::username();
+    let username: String = whoami::username().unwrap_or_else(|_| "unknown".to_string());
     
-    format!("{}@{}", username, hostname)
+    format!("{}@{}", username, machine_hostname)
 }
 
 /// Encrypt data and save to file

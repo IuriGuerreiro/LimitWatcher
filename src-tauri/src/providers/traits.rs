@@ -1,14 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UsageData {
-    pub session_used: u32,
-    pub session_limit: u32,
-    pub weekly_used: u32,
-    pub weekly_limit: u32,
-    pub reset_time: Option<chrono::DateTime<chrono::Utc>>,
-}
+use crate::storage::UsageData;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthStatus {
@@ -30,7 +22,7 @@ pub trait Provider: Send + Sync {
     async fn check_auth(&self) -> AuthStatus;
     
     /// Fetch current usage data from the provider
-    async fn fetch_usage(&self) -> Result<UsageData, String>;
+    async fn fetch_usage(&self) -> Result<UsageData, String>; // Using String for error for now, ideally strictly typed
     
     /// Refresh authentication if needed
     async fn refresh_auth(&self) -> Result<(), String>;
