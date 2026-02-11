@@ -53,6 +53,8 @@ pub fn run() {
             commands::set_provider_enabled,
             commands::start_provider_auth,
             commands::complete_provider_auth,
+            commands::logout_provider,
+            commands::get_provider_auth_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

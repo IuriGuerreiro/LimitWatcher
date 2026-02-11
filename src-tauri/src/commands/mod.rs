@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use tauri::State;
 
 use crate::providers::{ProviderRegistry, AuthFlow, AuthResponse};
-use crate::storage::{CacheManager, UsageData, keyring};
+use crate::storage::{CacheManager, UsageData, ModelQuota, keyring};
 
 #[derive(serde::Serialize)]
 pub struct ProviderStatus {
@@ -18,6 +18,8 @@ pub struct ProviderStatus {
     pub weekly_limit: u64,
     pub reset_time: Option<String>,
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_quotas: Option<Vec<ModelQuota>>,
 }
 
 impl From<(&str, &UsageData, bool, bool)> for ProviderStatus {
@@ -32,6 +34,7 @@ impl From<(&str, &UsageData, bool, bool)> for ProviderStatus {
             weekly_limit: data.weekly_limit,
             reset_time: data.reset_time.map(|t| t.to_rfc3339()),
             error: data.error.clone(),
+            model_quotas: data.model_quotas.clone(),
         }
     }
 }
@@ -173,4 +176,79 @@ pub async fn set_provider_enabled(
     let mut registry = registry.write().await;
     registry.set_enabled(&provider, enabled);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn logout_provider(
+    provider: String,
+    registry: State<'_, Arc<RwLock<ProviderRegistry>>>,
+) -> Result<(), String> {
+    let provider_arc = {
+        let registry_guard = registry.read().await;
+        registry_guard.get_provider(&provider)
+    };
+
+    if let Some(p_arc) = provider_arc {
+        let mut p = p_arc.write().await;
+        p.logout().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Provider '{}' not found", provider))
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct AuthStatusResponse {
+    pub authenticated: bool,
+    pub user: Option<String>,
+    pub plan: Option<String>,
+    pub expires: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_provider_auth_status(
+    provider: String,
+    registry: State<'_, Arc<RwLock<ProviderRegistry>>>,
+) -> Result<AuthStatusResponse, String> {
+    let provider_arc = {
+        let registry_guard = registry.read().await;
+        registry_guard.get_provider(&provider)
+    };
+
+    if let Some(p_arc) = provider_arc {
+        let p = p_arc.read().await;
+        let status = p.auth_status();
+
+        match status {
+            crate::providers::traits::AuthStatus::Authenticated { user, expires } => {
+                // Parse user string to extract email and plan
+                // Format from gemini.rs: "email@example.com (Plan)"
+                let (email, plan) = if let Some(user_str) = &user {
+                    if let Some(paren_pos) = user_str.rfind(" (") {
+                        let email = user_str[..paren_pos].to_string();
+                        let plan = user_str[paren_pos + 2..user_str.len() - 1].to_string();
+                        (Some(email), Some(plan))
+                    } else {
+                        (Some(user_str.clone()), None)
+                    }
+                } else {
+                    (None, None)
+                };
+
+                Ok(AuthStatusResponse {
+                    authenticated: true,
+                    user: email,
+                    plan,
+                    expires,
+                })
+            }
+            _ => Ok(AuthStatusResponse {
+                authenticated: false,
+                user: None,
+                plan: None,
+                expires: None,
+            }),
+        }
+    } else {
+        Err(format!("Provider '{}' not found", provider))
+    }
 }

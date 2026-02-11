@@ -170,6 +170,7 @@ impl Provider for CopilotProvider {
             weekly_reset_time: reset_time,
             last_updated: Utc::now(),
             error: None,
+            model_quotas: None,
         })
     }
     

@@ -17,6 +17,15 @@ pub struct UsageData {
     pub weekly_reset_time: Option<DateTime<Utc>>,
     pub last_updated: DateTime<Utc>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub model_quotas: Option<Vec<ModelQuota>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelQuota {
+    pub model_id: String,
+    pub percent_left: f64,
+    pub reset_time: Option<DateTime<Utc>>,
 }
 
 impl Default for UsageData {
@@ -31,6 +40,7 @@ impl Default for UsageData {
             weekly_reset_time: None,
             last_updated: Utc::now(),
             error: None,
+            model_quotas: None,
         }
     }
 }
